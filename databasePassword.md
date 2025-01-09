@@ -1,0 +1,5 @@
+qmrvJMoRr3ElYiF5
+
+Project URL: https://rqbenztczogaotbxhlsq.supabase.co
+
+anon public: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxYmVuenRjem9nYW90YnhobHNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzOTEzNDQsImV4cCI6MjA1MTk2NzM0NH0.nylnKwE1a_GdapyV86E9CQPBJMjHS4mY7Bjle9D6b6w
