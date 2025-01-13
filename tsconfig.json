@@ -6,7 +6,8 @@
     "paths": {
       "@/*": ["./app/*"],
       "@config/*": ["./app/config/*"],
-      "@hooks/*": ["./app/hooks/*"]
+      "@hooks/*": ["./app/hooks/*"],
+      "@config": ["./app/config/index"]
     }
   },
   "include": [

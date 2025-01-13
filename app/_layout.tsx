@@ -6,11 +6,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { Provider as PaperProvider } from 'react-native-paper';
-import { QueryClientProvider, QueryCache } from '@tanstack/react-query';
-import { AuthProvider } from '@config/auth';
-import { QueryPersistProvider } from '@config/query-persist';
-import { useColorScheme } from '@hooks/useColorScheme';
-import { theme, queryClient } from '@config';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './config/auth';
+import { QueryProvider } from './config/query-persist';
+import { useColorScheme } from '../hooks/useColorScheme';
+import { theme, queryClient } from './config';
 import { Alert } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -32,43 +32,20 @@ export default function RootLayout() {
     return null;
   }
 
-  const queryCache = new QueryCache({
-    onError: (error) => {
-      Alert.alert(
-        'Erro',
-        error.message || 'Ocorreu um erro inesperado',
-        [{ text: 'OK' }]
-      );
-    },
-  });
-
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <QueryPersistProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <QueryProvider>
           <PaperProvider theme={theme}>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <Stack>
-                <Stack.Screen 
-                  name="(tabs)" 
-                  options={{ 
-                    headerShown: false,
-                    gestureEnabled: false 
-                  }} 
-                />
-                <Stack.Screen 
-                  name="+not-found" 
-                  options={{ 
-                    title: 'Página não encontrada',
-                    gestureEnabled: false
-                  }} 
-                />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
-              <StatusBar style="auto" />
+              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
             </ThemeProvider>
           </PaperProvider>
-        </QueryPersistProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+        </QueryProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
