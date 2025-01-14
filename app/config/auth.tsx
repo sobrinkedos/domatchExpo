@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { router, useSegments } from 'expo-router';
 
 type AuthContextType = {
   session: Session | null;
@@ -14,10 +15,29 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
 });
 
+// Esta função verifica se o usuário está autenticado e redireciona conforme necessário
+function useProtectedRoute(user: User | null) {
+  const segments = useSegments();
+
+  useEffect(() => {
+    const inAuthGroup = segments[0] === 'auth';
+    
+    if (!user && !inAuthGroup) {
+      // Se não há usuário e não está no grupo auth, redireciona para login
+      router.replace('/auth/login');
+    } else if (user && inAuthGroup) {
+      // Se há usuário e está no grupo auth, redireciona para home
+      router.replace('/(tabs)');
+    }
+  }, [user, segments]);
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+
+  useProtectedRoute(user);
 
   useEffect(() => {
     const fetchSession = async () => {
