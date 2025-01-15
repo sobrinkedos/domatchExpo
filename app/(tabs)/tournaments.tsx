@@ -56,7 +56,6 @@ export default function TournamentsScreen() {
             max_participants: parseInt(maxParticipants),
             prize,
             status: 'open',
-            created_by: profile?.id,
           },
         ])
         .select();

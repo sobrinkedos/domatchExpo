@@ -8,11 +8,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 type Community = {
   id: string;
   name: string;
-  description: string;
-  location: string;
-  member_count: number;
+  description: string | null;
+  location: string | null;
+  whatsapp_group_id: string | null;
   created_at: string;
-  created_by: string;
 };
 
 type Member = {
@@ -31,6 +30,7 @@ export default function CommunitiesScreen() {
   const [visible, setVisible] = useState(false);
   const [membersVisible, setMembersVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -57,46 +57,32 @@ export default function CommunitiesScreen() {
     setSelectedCommunity(null);
   };
 
-  const createCommunity = async () => {
-    if (!name) {
-      Alert.alert('Erro', 'Por favor, preencha o nome da comunidade');
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Erro', 'O nome da comunidade é obrigatório');
       return;
     }
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      const { data: community, error } = await supabase
         .from('communities')
-        .insert([
-          {
-            name,
-            description,
-            location,
-            created_by: profile?.id,
-          },
-        ])
-        .select();
+        .insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          location: location.trim() || null,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      // Adiciona o criador como admin da comunidade
-      if (data?.[0]?.id) {
-        const { error: memberError } = await supabase
-          .from('community_members')
-          .insert([
-            {
-              community_id: data[0].id,
-              player_id: profile?.id,
-              role: 'admin',
-            },
-          ]);
-
-        if (memberError) throw memberError;
-      }
-
-      Alert.alert('Sucesso', 'Comunidade criada com sucesso!');
-      hideModal();
-      fetchCommunities();
+      setCommunities([community, ...communities]);
+      setVisible(false);
+      setName('');
+      setDescription('');
+      setLocation('');
     } catch (error: any) {
       Alert.alert('Erro', error.message);
     } finally {
@@ -109,17 +95,16 @@ export default function CommunitiesScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('communities')
-        .select('*, community_members(role)')
-        .or(`created_by.eq.${profile?.id},community_members.player_id.eq.${profile?.id}`)
+        .select('*, community_members(player_id, role)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setCommunities(data || []);
     } catch (error: any) {
-      console.error('Erro ao buscar comunidades:', error);
+      console.error('Erro ao buscar comunidades:', error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -251,7 +236,7 @@ export default function CommunitiesScreen() {
           />
           <Button
             mode="contained"
-            onPress={createCommunity}
+            onPress={handleCreate}
             loading={loading}
             disabled={loading}
             style={styles.button}

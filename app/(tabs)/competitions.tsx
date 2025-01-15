@@ -14,7 +14,6 @@ type Competition = {
   status: 'draft' | 'in_progress' | 'finished';
   community_id: string;
   created_at: string;
-  created_by: string;
   community: {
     name: string;
   };
@@ -52,7 +51,7 @@ export default function CompetitionsScreen() {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
+  const [selectedCommunity, setSelectedCommunity] = useState<{ id: string; name: string } | null>(null);
   const [communities, setCommunities] = useState<{ id: string; name: string; }[]>([]);
   const [filter, setFilter] = useState<'all' | 'in_progress' | 'finished'>('all');
 
@@ -67,7 +66,7 @@ export default function CompetitionsScreen() {
     setDescription('');
     setStartDate('');
     setEndDate('');
-    setSelectedCommunityId('');
+    setSelectedCommunity(null);
   };
 
   const showGames = async (competition: Competition) => {
@@ -97,33 +96,35 @@ export default function CompetitionsScreen() {
   };
 
   const createCompetition = async () => {
-    if (!name || !selectedCommunityId || !startDate) {
-      Alert.alert('Erro', 'Por favor, preencha os campos obrigatórios');
+    if (!name.trim()) {
+      Alert.alert('Erro', 'O nome da competição é obrigatório');
+      return;
+    }
+
+    if (!selectedCommunity) {
+      Alert.alert('Erro', 'Selecione uma comunidade');
       return;
     }
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      const { data: competition, error } = await supabase
         .from('competitions')
-        .insert([
-          {
-            name,
-            description,
-            start_date: startDate,
-            end_date: endDate || null,
-            status: 'draft',
-            community_id: selectedCommunityId,
-            created_by: profile?.id,
-          },
-        ])
-        .select();
+        .insert({
+          name: name.trim(),
+          community_id: selectedCommunity.id,
+          status: 'draft',
+        })
+        .select('*, community:communities(name)')
+        .single();
 
       if (error) throw error;
 
-      Alert.alert('Sucesso', 'Competição criada com sucesso!');
-      hideModal();
-      fetchCompetitions();
+      setCompetitions([competition, ...competitions]);
+      setVisible(false);
+      setName('');
+      setSelectedCommunity(null);
     } catch (error: any) {
       Alert.alert('Erro', error.message);
     } finally {
@@ -134,22 +135,15 @@ export default function CompetitionsScreen() {
   const fetchCompetitions = async () => {
     try {
       setLoading(true);
-      let query = supabase
+      const { data, error } = await supabase
         .from('competitions')
         .select('*, community:communities(name)')
-        .eq('created_by', profile?.id);
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setCompetitions(data || []);
     } catch (error: any) {
-      console.error('Erro ao buscar competições:', error);
+      console.error('Erro ao buscar competições:', error.message);
     } finally {
       setLoading(false);
     }
@@ -328,10 +322,10 @@ export default function CompetitionsScreen() {
                 {communities.map((community) => (
                   <Chip
                     key={community.id}
-                    selected={selectedCommunityId === community.id}
-                    onPress={() => setSelectedCommunityId(community.id)}
+                    selected={selectedCommunity?.id === community.id}
+                    onPress={() => setSelectedCommunity(community)}
                     style={styles.communityChip}
-                    mode={selectedCommunityId === community.id ? 'flat' : 'outlined'}
+                    mode={selectedCommunity?.id === community.id ? 'flat' : 'outlined'}
                   >
                     {community.name}
                   </Chip>
@@ -347,7 +341,7 @@ export default function CompetitionsScreen() {
             mode="contained"
             onPress={createCompetition}
             loading={loading}
-            disabled={loading || !selectedCommunityId}
+            disabled={loading || !selectedCommunity}
             style={styles.button}
           >
             Criar Competição

@@ -7,10 +7,9 @@ import { supabase } from '../../src/lib/supabase';
 type Player = {
   id: string;
   name: string;
-  nickname: string;
+  nickname: string | null;
   phone: string;
   created_at: string;
-  created_by: string;
 };
 
 export default function PlayersScreen() {
@@ -21,6 +20,7 @@ export default function PlayersScreen() {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [phone, setPhone] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const showModal = () => setVisible(true);
   const hideModal = () => {
@@ -30,31 +30,37 @@ export default function PlayersScreen() {
     setPhone('');
   };
 
-  const createPlayer = async () => {
-    if (!name || !nickname) {
-      Alert.alert('Erro', 'Por favor, preencha nome e apelido');
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Erro', 'O nome do jogador é obrigatório');
+      return;
+    }
+
+    if (!phone.trim()) {
+      Alert.alert('Erro', 'O telefone é obrigatório');
       return;
     }
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      const { data: player, error } = await supabase
         .from('players')
-        .insert([
-          {
-            name,
-            nickname,
-            phone,
-            created_by: profile?.id,
-          },
-        ])
-        .select();
+        .insert({
+          name: name.trim(),
+          nickname: nickname.trim() || null,
+          phone: phone.trim(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      Alert.alert('Sucesso', 'Jogador cadastrado com sucesso!');
-      hideModal();
-      fetchPlayers();
+      setPlayers([player, ...players]);
+      setVisible(false);
+      setName('');
+      setNickname('');
+      setPhone('');
     } catch (error: any) {
       Alert.alert('Erro', error.message);
     } finally {
@@ -68,16 +74,15 @@ export default function PlayersScreen() {
       const { data, error } = await supabase
         .from('players')
         .select('*')
-        .eq('created_by', profile?.id)
-        .order('name');
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setPlayers(data || []);
     } catch (error: any) {
-      console.error('Erro ao buscar jogadores:', error);
+      console.error('Erro ao buscar jogadores:', error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -118,7 +123,7 @@ export default function PlayersScreen() {
 
   React.useEffect(() => {
     fetchPlayers();
-  }, [profile?.id]);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -128,7 +133,13 @@ export default function PlayersScreen() {
         </Text>
       </Surface>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        refreshControl={{
+          refreshing,
+          onRefresh: fetchPlayers,
+        }}
+      >
         {players.map((player) => (
           <Surface key={player.id} style={styles.playerCard} elevation={1}>
             <View style={styles.playerInfo}>
@@ -191,7 +202,7 @@ export default function PlayersScreen() {
           />
           <Button
             mode="contained"
-            onPress={createPlayer}
+            onPress={handleCreate}
             loading={loading}
             disabled={loading}
             style={styles.button}

@@ -35,39 +35,69 @@ export default function HomeScreen() {
   const fetchSummary = async () => {
     try {
       // Buscar contagem de jogadores
-      const { count: playersCount } = await supabase
+      const { data: players } = await supabase
         .from('players')
-        .select('*', { count: 'exact', head: true })
-        .eq('created_by', profile?.id);
+        .select('id');
 
       // Buscar contagem de comunidades
-      const { count: communitiesCount } = await supabase
+      const { data: communities } = await supabase
         .from('communities')
-        .select('*', { count: 'exact', head: true })
-        .eq('created_by', profile?.id);
+        .select('id');
 
       // Buscar contagem de competições ativas
-      const { count: activeCompetitionsCount } = await supabase
+      const { data: activeCompetitions } = await supabase
         .from('competitions')
-        .select('*', { count: 'exact', head: true })
-        .eq('created_by', profile?.id)
+        .select('id')
         .eq('status', 'in_progress');
 
-      // Buscar jogos recentes
-      const { data: recentGames } = await supabase
+      const recentGames = await fetchRecentGames();
+
+      setSummary({
+        playersCount: players?.length || 0,
+        communitiesCount: communities?.length || 0,
+        activeCompetitionsCount: activeCompetitions?.length || 0,
+        recentGames: recentGames || []
+      });
+    } catch (error: any) {
+      console.error('Erro ao buscar resumo:', error.message);
+    }
+  };
+
+  const fetchRecentGames = async () => {
+    try {
+      // Primeiro busca os jogos
+      const { data: games } = await supabase
         .from('games')
-        .select('*, player1:players!player1_id(*), player2:players!player2_id(*), competition:competitions(name)')
+        .select('id, player1_id, player2_id, player1_score, player2_score, created_at')
         .order('created_at', { ascending: false })
         .limit(5);
 
-      setSummary({
-        playersCount: playersCount || 0,
-        communitiesCount: communitiesCount || 0,
-        activeCompetitionsCount: activeCompetitionsCount || 0,
-        recentGames: recentGames || [],
-      });
-    } catch (error) {
-      console.error('Erro ao buscar resumo:', error);
+      if (!games || games.length === 0) return [];
+
+      // Depois busca os jogadores
+      const playerIds = [...new Set(games.flatMap(game => [game.player1_id, game.player2_id]))];
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, name, nickname')
+        .in('id', playerIds);
+
+      if (!players) return games;
+
+      // Mapeia os jogadores para um objeto para fácil acesso
+      const playersMap = players.reduce((acc, player) => ({
+        ...acc,
+        [player.id]: player
+      }), {});
+
+      // Combina os dados
+      return games.map(game => ({
+        ...game,
+        player1: playersMap[game.player1_id] || null,
+        player2: playersMap[game.player2_id] || null
+      }));
+    } catch (error: any) {
+      console.error('Erro ao buscar jogos recentes:', error.message);
+      return [];
     }
   };
 
@@ -135,7 +165,7 @@ export default function HomeScreen() {
             <Card key={game.id} style={styles.gameCard} mode="elevated">
               <Card.Content>
                 <Text variant="bodySmall" style={styles.competitionName}>
-                  {game.competition.name}
+                  {/* {game.competition.name} */}
                 </Text>
                 <View style={styles.gameContent}>
                   <View style={styles.player}>

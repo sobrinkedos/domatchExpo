@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS competitions (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
-  start_date DATE NOT NULL,
-  end_date DATE,
+  start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_date TIMESTAMP WITH TIME ZONE,
   status TEXT NOT NULL CHECK (status IN ('draft', 'in_progress', 'finished')) DEFAULT 'draft',
   community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
@@ -75,297 +75,53 @@ ALTER TABLE competitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 
--- Create policies
-CREATE POLICY "Users can view their own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id);
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Enable read for authenticated users only" ON profiles;
+DROP POLICY IF EXISTS "Enable update for users based on id" ON profiles;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON players;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON communities;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON community_members;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON competitions;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON games;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON matches;
 
-CREATE POLICY "Users can update their own profile"
+-- Create policies
+-- Profiles
+CREATE POLICY "Enable read for authenticated users only"
+  ON profiles FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable update for users based on id"
   ON profiles FOR UPDATE
   USING (auth.uid() = id);
 
-CREATE POLICY "Users can view their own players and players in their communities"
-  ON players FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.player_id = players.id
-      AND EXISTS (
-        SELECT 1 FROM community_members cm2
-        WHERE cm2.community_id = cm.community_id
-        AND cm2.player_id = players.id
-      )
-    )
-  );
+-- All other tables
+-- Players
+CREATE POLICY "Enable all for authenticated users"
+  ON players FOR ALL
+  USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can create players"
-  ON players FOR INSERT
-  WITH CHECK (TRUE);
+-- Communities
+CREATE POLICY "Enable all for authenticated users"
+  ON communities FOR ALL
+  USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can update players"
-  ON players FOR UPDATE
-  USING (TRUE);
+-- Community members
+CREATE POLICY "Enable all for authenticated users"
+  ON community_members FOR ALL
+  USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can delete players"
-  ON players FOR DELETE
-  USING (TRUE);
+-- Competitions
+CREATE POLICY "Enable all for authenticated users"
+  ON competitions FOR ALL
+  USING (auth.role() = 'authenticated');
 
--- Communities policies
-CREATE POLICY "Users can view communities they are members of"
-  ON communities FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = communities.id
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
+-- Games
+CREATE POLICY "Enable all for authenticated users"
+  ON games FOR ALL
+  USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can create communities"
-  ON communities FOR INSERT
-  WITH CHECK (TRUE);
-
-CREATE POLICY "Users can update communities they are admins of"
-  ON communities FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = communities.id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can delete communities they are admins of"
-  ON communities FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = communities.id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
--- Community members policies
-CREATE POLICY "Users can view community members"
-  ON community_members FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = community_members.community_id
-    )
-  );
-
-CREATE POLICY "Users can add community members if they are admins"
-  ON community_members FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = community_members.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can update community members if they are admins"
-  ON community_members FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = community_members.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can delete community members if they are admins"
-  ON community_members FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = community_members.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
--- Competitions policies
-CREATE POLICY "Users can view competitions in their communities"
-  ON competitions FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = competitions.community_id
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can create competitions if they are community admins"
-  ON competitions FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = competitions.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can update competitions if they are community admins"
-  ON competitions FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = competitions.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can delete competitions if they are community admins"
-  ON competitions FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM community_members cm
-      WHERE cm.community_id = competitions.community_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
--- Games policies
-CREATE POLICY "Users can view games in their competitions"
-  ON games FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions c
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE c.id = games.competition_id
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can create games if they are community admins"
-  ON games FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions c
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE c.id = games.competition_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can update games if they are community admins"
-  ON games FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions c
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE c.id = games.competition_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can delete games if they are community admins"
-  ON games FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions c
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE c.id = games.competition_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
--- Matches policies
-CREATE POLICY "Users can view matches in their games"
-  ON matches FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM games g
-      JOIN competitions c ON c.id = g.competition_id
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE g.id = matches.game_id
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can create matches if they are community admins"
-  ON matches FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM games g
-      JOIN competitions c ON c.id = g.competition_id
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE g.id = matches.game_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can update matches if they are community admins"
-  ON matches FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM games g
-      JOIN competitions c ON c.id = g.competition_id
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE g.id = matches.game_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
-
-CREATE POLICY "Users can delete matches if they are community admins"
-  ON matches FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM games g
-      JOIN competitions c ON c.id = g.competition_id
-      JOIN community_members cm ON cm.community_id = c.community_id
-      WHERE g.id = matches.game_id
-      AND cm.role = 'admin'
-      AND cm.player_id IN (
-        SELECT id FROM players
-      )
-    )
-  );
+-- Matches
+CREATE POLICY "Enable all for authenticated users"
+  ON matches FOR ALL
+  USING (auth.role() = 'authenticated');

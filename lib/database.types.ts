@@ -13,26 +13,23 @@ export interface Database {
         Row: {
           id: string
           name: string
-          nickname: string
-          phone: string | null
+          nickname: string | null
+          phone: string
           created_at: string
-          created_by: string
         }
         Insert: {
           id?: string
           name: string
-          nickname: string
-          phone?: string | null
+          nickname?: string | null
+          phone: string
           created_at?: string
-          created_by: string
         }
         Update: {
           id?: string
           name?: string
-          nickname?: string
-          phone?: string | null
+          nickname?: string | null
+          phone?: string
           created_at?: string
-          created_by?: string
         }
       }
       communities: {
@@ -41,24 +38,24 @@ export interface Database {
           name: string
           description: string | null
           location: string | null
+          whatsapp_group_id: string | null
           created_at: string
-          created_by: string
         }
         Insert: {
           id?: string
           name: string
           description?: string | null
           location?: string | null
+          whatsapp_group_id?: string | null
           created_at?: string
-          created_by: string
         }
         Update: {
           id?: string
           name?: string
           description?: string | null
           location?: string | null
+          whatsapp_group_id?: string | null
           created_at?: string
-          created_by?: string
         }
       }
       community_members: {
@@ -94,7 +91,6 @@ export interface Database {
           status: 'draft' | 'in_progress' | 'finished'
           community_id: string
           created_at: string
-          created_by: string
         }
         Insert: {
           id?: string
@@ -105,7 +101,6 @@ export interface Database {
           status?: 'draft' | 'in_progress' | 'finished'
           community_id: string
           created_at?: string
-          created_by: string
         }
         Update: {
           id?: string
@@ -116,7 +111,6 @@ export interface Database {
           status?: 'draft' | 'in_progress' | 'finished'
           community_id?: string
           created_at?: string
-          created_by?: string
         }
       }
       games: {

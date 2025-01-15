@@ -23,14 +23,11 @@ export default function NewCommunityScreen() {
       // 1. Criar a comunidade no banco de dados
       const { data: community, error: createError } = await supabase
         .from('communities')
-        .insert([
-          {
-            name: name.trim(),
-            description: description.trim() || null,
-            location: location.trim() || null,
-            created_by: null, // Removendo a referência ao created_by
-          },
-        ])
+        .insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          location: location.trim() || null,
+        })
         .select()
         .single();
 
