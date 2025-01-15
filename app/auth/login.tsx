@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useAuth } from '../../src/lib/auth';
 
 export default function LoginScreen() {
@@ -19,6 +19,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await signIn(email, password);
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao fazer login');
     } finally {

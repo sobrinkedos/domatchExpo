@@ -31,11 +31,38 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="players"
         options={{
-          title: 'Explorar',
+          title: 'Jogadores',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="compass" size={size} color={color} />
+            <MaterialCommunityIcons name="account-group" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="communities"
+        options={{
+          title: 'Comunidades',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home-group" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="competitions"
+        options={{
+          title: 'Competições',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="trophy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" size={size} color={color} />
           ),
         }}
       />

@@ -20,6 +20,14 @@ module.exports = function(api) {
             '.json'
           ]
         }],
+        ["module:react-native-dotenv", {
+          "moduleName": "@env",
+          "path": ".env",
+          "blacklist": null,
+          "whitelist": null,
+          "safe": false,
+          "allowUndefined": true
+        }],
         'expo-router/babel'
       ]
     };

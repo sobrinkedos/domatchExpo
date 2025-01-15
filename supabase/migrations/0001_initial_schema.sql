@@ -1,271 +1,371 @@
--- Habilita a extensão uuid-ossp para gerar UUIDs
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Enum para status de competição
-CREATE TYPE competition_status AS ENUM ('pending', 'active', 'finished');
-
--- Enum para status de jogo
-CREATE TYPE game_status AS ENUM ('pending', 'in_progress', 'finished');
-
--- Enum para tipo de partida
-CREATE TYPE match_type AS ENUM ('simple', 'carroca', 'la_e_lo', 'cruzada', 'points');
-
--- Enum para papéis de usuário
-CREATE TYPE user_role AS ENUM ('admin', 'organizer');
-
--- Tabela de perfis de usuário (extends auth.users)
-CREATE TABLE profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    nickname TEXT,
-    phone TEXT NOT NULL UNIQUE,
-    roles user_role[] NOT NULL DEFAULT '{}'::user_role[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT phone_format CHECK (phone ~ '^\+?[1-9]\d{1,14}$') -- Formato E.164
+-- Create tables
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Tabela de comunidades
-CREATE TABLE communities (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    admin_id UUID NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-    whatsapp_group_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+CREATE TABLE IF NOT EXISTS players (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  nickname TEXT,
+  phone TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Tabela de jogadores
-CREATE TABLE players (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    nickname TEXT,
-    phone TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT phone_format CHECK (phone ~ '^\+?[1-9]\d{1,14}$') -- Formato E.164
+CREATE TABLE IF NOT EXISTS communities (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  location TEXT,
+  whatsapp_group_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Tabela de relação entre jogadores e comunidades
-CREATE TABLE community_players (
-    community_id UUID REFERENCES communities(id) ON DELETE CASCADE,
-    player_id UUID REFERENCES players(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    PRIMARY KEY (community_id, player_id)
+CREATE TABLE IF NOT EXISTS community_members (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL,
+  UNIQUE(community_id, player_id)
 );
 
--- Tabela de competições
-CREATE TABLE competitions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    status competition_status NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    finished_at TIMESTAMP WITH TIME ZONE
+CREATE TABLE IF NOT EXISTS competitions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  start_date DATE NOT NULL,
+  end_date DATE,
+  status TEXT NOT NULL CHECK (status IN ('draft', 'in_progress', 'finished')) DEFAULT 'draft',
+  community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Tabela de jogos
-CREATE TABLE games (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
-    player_a1_id UUID NOT NULL REFERENCES players(id),
-    player_a2_id UUID NOT NULL REFERENCES players(id),
-    player_b1_id UUID NOT NULL REFERENCES players(id),
-    player_b2_id UUID NOT NULL REFERENCES players(id),
-    status game_status NOT NULL DEFAULT 'pending',
-    score_a INTEGER NOT NULL DEFAULT 0,
-    score_b INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    finished_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT different_players CHECK (
-        player_a1_id != player_a2_id AND
-        player_a1_id != player_b1_id AND
-        player_a1_id != player_b2_id AND
-        player_a2_id != player_b1_id AND
-        player_a2_id != player_b2_id AND
-        player_b1_id != player_b2_id
-    )
+CREATE TABLE IF NOT EXISTS games (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  player1_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  player2_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  player1_score INTEGER,
+  player2_score INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('scheduled', 'in_progress', 'finished')) DEFAULT 'scheduled',
+  winner_id UUID REFERENCES players(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL,
+  CONSTRAINT different_players CHECK (player1_id != player2_id)
 );
 
--- Tabela de partidas
-CREATE TABLE matches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-    winner_team CHAR(1) NOT NULL CHECK (winner_team IN ('a', 'b')),
-    points INTEGER NOT NULL CHECK (points BETWEEN 1 AND 4),
-    type match_type NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+CREATE TABLE IF NOT EXISTS matches (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  player1_score INTEGER NOT NULL,
+  player2_score INTEGER NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 
--- Função para atualizar updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = timezone('utc'::text, now());
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Triggers para atualizar updated_at
-CREATE TRIGGER update_profiles_updated_at
-    BEFORE UPDATE ON profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_communities_updated_at
-    BEFORE UPDATE ON communities
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_players_updated_at
-    BEFORE UPDATE ON players
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_competitions_updated_at
-    BEFORE UPDATE ON competitions
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_games_updated_at
-    BEFORE UPDATE ON games
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- Políticas de segurança RLS (Row Level Security)
+-- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE communities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE community_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE communities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 
--- Políticas para profiles
-CREATE POLICY "Profiles são visíveis para todos os usuários autenticados"
-    ON profiles FOR SELECT
-    TO authenticated
-    USING (true);
+-- Create policies
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = id);
 
-CREATE POLICY "Usuários podem atualizar seus próprios perfis"
-    ON profiles FOR UPDATE
-    TO authenticated
-    USING (auth.uid() = id)
-    WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
 
--- Políticas para communities
-CREATE POLICY "Communities são visíveis para todos os usuários autenticados"
-    ON communities FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can view their own players and players in their communities"
+  ON players FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.player_id = players.id
+      AND EXISTS (
+        SELECT 1 FROM community_members cm2
+        WHERE cm2.community_id = cm.community_id
+        AND cm2.player_id = players.id
+      )
+    )
+  );
 
-CREATE POLICY "Apenas admins podem criar communities"
-    ON communities FOR INSERT
-    TO authenticated
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM profiles
-        WHERE id = auth.uid()
-        AND 'admin' = ANY(roles)
-    ));
+CREATE POLICY "Users can create players"
+  ON players FOR INSERT
+  WITH CHECK (TRUE);
 
-CREATE POLICY "Apenas o admin da community pode atualizá-la"
-    ON communities FOR UPDATE
-    TO authenticated
-    USING (admin_id = auth.uid())
-    WITH CHECK (admin_id = auth.uid());
+CREATE POLICY "Users can update players"
+  ON players FOR UPDATE
+  USING (TRUE);
 
--- Políticas para players
-CREATE POLICY "Players são visíveis para todos os usuários autenticados"
-    ON players FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can delete players"
+  ON players FOR DELETE
+  USING (TRUE);
 
-CREATE POLICY "Admins e organizers podem criar players"
-    ON players FOR INSERT
-    TO authenticated
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM profiles
-        WHERE id = auth.uid()
-        AND (roles && ARRAY['admin', 'organizer']::user_role[])
-    ));
+-- Communities policies
+CREATE POLICY "Users can view communities they are members of"
+  ON communities FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = communities.id
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
--- Políticas para community_players
-CREATE POLICY "Community players são visíveis para todos os usuários autenticados"
-    ON community_players FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can create communities"
+  ON communities FOR INSERT
+  WITH CHECK (TRUE);
 
-CREATE POLICY "Admins e organizers podem adicionar players à community"
-    ON community_players FOR INSERT
-    TO authenticated
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM communities c
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE c.id = community_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ));
+CREATE POLICY "Users can update communities they are admins of"
+  ON communities FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = communities.id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
--- Políticas para competitions
-CREATE POLICY "Competitions são visíveis para todos os usuários autenticados"
-    ON competitions FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can delete communities they are admins of"
+  ON communities FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = communities.id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
-CREATE POLICY "Admins e organizers podem criar e atualizar competitions"
-    ON competitions FOR ALL
-    TO authenticated
-    USING (EXISTS (
-        SELECT 1 FROM communities c
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE c.id = community_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ))
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM communities c
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE c.id = community_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ));
+-- Community members policies
+CREATE POLICY "Users can view community members"
+  ON community_members FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = community_members.community_id
+    )
+  );
 
--- Políticas para games e matches
-CREATE POLICY "Games e matches são visíveis para todos os usuários autenticados"
-    ON games FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can add community members if they are admins"
+  ON community_members FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = community_members.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
-CREATE POLICY "Matches são visíveis para todos os usuários autenticados"
-    ON matches FOR SELECT
-    TO authenticated
-    USING (true);
+CREATE POLICY "Users can update community members if they are admins"
+  ON community_members FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = community_members.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
-CREATE POLICY "Admins e organizers podem criar e atualizar games"
-    ON games FOR ALL
-    TO authenticated
-    USING (EXISTS (
-        SELECT 1 FROM competitions comp
-        JOIN communities c ON c.id = comp.community_id
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE comp.id = competition_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ))
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM competitions comp
-        JOIN communities c ON c.id = comp.community_id
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE comp.id = competition_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ));
+CREATE POLICY "Users can delete community members if they are admins"
+  ON community_members FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = community_members.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
 
-CREATE POLICY "Admins e organizers podem criar matches"
-    ON matches FOR INSERT
-    TO authenticated
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM games g
-        JOIN competitions comp ON comp.id = g.competition_id
-        JOIN communities c ON c.id = comp.community_id
-        JOIN profiles p ON p.id = auth.uid()
-        WHERE g.id = game_id
-        AND (c.admin_id = auth.uid() OR roles && ARRAY['organizer']::user_role[])
-    ));
+-- Competitions policies
+CREATE POLICY "Users can view competitions in their communities"
+  ON competitions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = competitions.community_id
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can create competitions if they are community admins"
+  ON competitions FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = competitions.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can update competitions if they are community admins"
+  ON competitions FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = competitions.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can delete competitions if they are community admins"
+  ON competitions FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM community_members cm
+      WHERE cm.community_id = competitions.community_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+-- Games policies
+CREATE POLICY "Users can view games in their competitions"
+  ON games FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM competitions c
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE c.id = games.competition_id
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can create games if they are community admins"
+  ON games FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM competitions c
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE c.id = games.competition_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can update games if they are community admins"
+  ON games FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM competitions c
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE c.id = games.competition_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can delete games if they are community admins"
+  ON games FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM competitions c
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE c.id = games.competition_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+-- Matches policies
+CREATE POLICY "Users can view matches in their games"
+  ON matches FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM games g
+      JOIN competitions c ON c.id = g.competition_id
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE g.id = matches.game_id
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can create matches if they are community admins"
+  ON matches FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM games g
+      JOIN competitions c ON c.id = g.competition_id
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE g.id = matches.game_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can update matches if they are community admins"
+  ON matches FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM games g
+      JOIN competitions c ON c.id = g.competition_id
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE g.id = matches.game_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );
+
+CREATE POLICY "Users can delete matches if they are community admins"
+  ON matches FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM games g
+      JOIN competitions c ON c.id = g.competition_id
+      JOIN community_members cm ON cm.community_id = c.community_id
+      WHERE g.id = matches.game_id
+      AND cm.role = 'admin'
+      AND cm.player_id IN (
+        SELECT id FROM players
+      )
+    )
+  );

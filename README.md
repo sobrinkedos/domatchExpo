@@ -1,50 +1,147 @@
-# Welcome to your Expo app 👋
+# DoMatch App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo para gerenciamento de jogos de dominó, incluindo jogadores, comunidades, competições e partidas.
 
-## Get started
+## Funcionalidades
 
-1. Install dependencies
+- Cadastro de jogadores
+- Criação e gerenciamento de comunidades
+- Organização de competições
+- Registro de jogos e partidas
+- Acompanhamento de estatísticas
+- Sistema de ranking
 
+## Pré-requisitos
+
+1. Node.js 18 ou superior
+2. Docker Desktop
+3. Supabase CLI
+4. Expo CLI
+
+## Configuração do Ambiente
+
+1. Instale o Docker Desktop:
+   - Baixe em https://www.docker.com/products/docker-desktop
+   - Instale e inicie o Docker Desktop
+
+2. Clone o repositório:
+   ```bash
+   git clone [URL_DO_REPOSITORIO]
+   cd DomatchApp
+   ```
+
+3. Instale as dependências:
    ```bash
    npm install
    ```
 
-2. Start the app
-
+4. Configure o Supabase localmente:
    ```bash
-    npx expo start
+   npx supabase init
+   npx supabase start
    ```
 
-In the output, you'll find options to open the app in a
+5. Copie as variáveis de ambiente:
+   ```bash
+   cp .env.example .env
+   ```
+   Preencha as variáveis no arquivo `.env` com os valores fornecidos pelo Supabase.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+6. Inicie o aplicativo:
+   ```bash
+   npx expo start
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Estrutura do Banco de Dados
 
-## Get a fresh project
+### Tabelas
 
-When you're ready, run:
+1. **players** - Jogadores
+   - id (UUID)
+   - name (TEXT)
+   - nickname (TEXT)
+   - phone (TEXT)
+   - created_at (TIMESTAMP)
+   - created_by (UUID)
 
-```bash
-npm run reset-project
-```
+2. **communities** - Comunidades
+   - id (UUID)
+   - name (TEXT)
+   - description (TEXT)
+   - location (TEXT)
+   - created_at (TIMESTAMP)
+   - created_by (UUID)
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+3. **community_members** - Membros das comunidades
+   - id (UUID)
+   - community_id (UUID)
+   - player_id (UUID)
+   - role (TEXT) - 'admin' ou 'member'
+   - created_at (TIMESTAMP)
 
-## Learn more
+4. **competitions** - Competições
+   - id (UUID)
+   - name (TEXT)
+   - description (TEXT)
+   - start_date (DATE)
+   - end_date (DATE)
+   - status (TEXT) - 'draft', 'in_progress' ou 'finished'
+   - community_id (UUID)
+   - created_at (TIMESTAMP)
+   - created_by (UUID)
 
-To learn more about developing your project with Expo, look at the following resources:
+5. **games** - Jogos
+   - id (UUID)
+   - competition_id (UUID)
+   - player1_id (UUID)
+   - player2_id (UUID)
+   - player1_score (INTEGER)
+   - player2_score (INTEGER)
+   - status (TEXT) - 'scheduled', 'in_progress' ou 'finished'
+   - winner_id (UUID)
+   - created_at (TIMESTAMP)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+6. **matches** - Partidas dentro de um jogo
+   - id (UUID)
+   - game_id (UUID)
+   - player1_score (INTEGER)
+   - player2_score (INTEGER)
+   - notes (TEXT)
+   - created_at (TIMESTAMP)
 
-## Join the community
+## Fluxo do Usuário
 
-Join our community of developers creating universal apps.
+1. Cadastro e Login
+   - Usuário se registra/faz login usando email e senha
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+2. Jogadores
+   - Cadastra jogadores com nome, apelido e telefone
+   - Visualiza lista de jogadores cadastrados
+   - Pode editar ou excluir jogadores
+
+3. Comunidades
+   - Cria uma comunidade
+   - Adiciona jogadores à comunidade
+   - Define administradores da comunidade
+
+4. Competições
+   - Cria uma competição dentro de uma comunidade
+   - Define data de início e término
+   - Adiciona jogadores da comunidade
+
+5. Jogos
+   - Cria jogos entre dois jogadores
+   - Registra partidas dentro do jogo
+   - Acompanha placar e define vencedor
+
+## Contribuição
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## Licença
+
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE.md](LICENSE.md) para detalhes.
