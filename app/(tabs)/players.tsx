@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
 import { Text, FAB, Portal, Modal, TextInput, Button, Surface, Avatar, IconButton } from 'react-native-paper';
 import { useAuth } from '../../src/lib/auth';
 import { supabase } from '../../src/lib/supabase';
@@ -135,10 +135,12 @@ export default function PlayersScreen() {
 
       <ScrollView
         style={styles.content}
-        refreshControl={{
-          refreshing,
-          onRefresh: fetchPlayers,
-        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchPlayers}
+          />
+        }
       >
         {players.map((player) => (
           <Surface key={player.id} style={styles.playerCard} elevation={1}>

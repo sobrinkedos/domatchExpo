@@ -4,35 +4,34 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { whatsappService } from '../../src/services/whatsapp';
+import { useMutation, useQueryClient } from 'react-query';
 
 export default function NewCommunityScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const session = supabase.auth.session();
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      Alert.alert('Erro', 'O nome da comunidade é obrigatório');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // 1. Criar a comunidade no banco de dados
-      const { data: community, error: createError } = await supabase
+  const { mutateAsync: createCommunity } = useMutation({
+    mutationFn: async () => {
+      const { error, data } = await supabase
         .from('communities')
         .insert({
           name: name.trim(),
           description: description.trim() || null,
           location: location.trim() || null,
+          created_by: session?.user.id,
         })
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (error) throw error;
 
+      return data;
+    },
+    onSuccess: (community) => {
       try {
         // 2. Criar o grupo no WhatsApp
         const groupId = await whatsappService.createGroup(
@@ -65,6 +64,18 @@ export default function NewCommunityScreen() {
           },
         ]
       );
+    },
+  });
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Erro', 'O nome da comunidade é obrigatório');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await createCommunity();
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao criar comunidade');
     } finally {

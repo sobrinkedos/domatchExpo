@@ -16,6 +16,7 @@ export interface Database {
           nickname: string | null
           phone: string
           created_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -23,6 +24,7 @@ export interface Database {
           nickname?: string | null
           phone: string
           created_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -30,7 +32,17 @@ export interface Database {
           nickname?: string | null
           phone?: string
           created_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "players_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       communities: {
         Row: {
@@ -40,6 +52,8 @@ export interface Database {
           location: string | null
           whatsapp_group_id: string | null
           created_at: string
+          updated_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -48,6 +62,8 @@ export interface Database {
           location?: string | null
           whatsapp_group_id?: string | null
           created_at?: string
+          updated_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -56,7 +72,18 @@ export interface Database {
           location?: string | null
           whatsapp_group_id?: string | null
           created_at?: string
+          updated_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "communities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       community_members: {
         Row: {
@@ -65,6 +92,7 @@ export interface Database {
           player_id: string
           role: 'admin' | 'member'
           created_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -72,6 +100,7 @@ export interface Database {
           player_id: string
           role: 'admin' | 'member'
           created_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -79,7 +108,17 @@ export interface Database {
           player_id?: string
           role?: 'admin' | 'member'
           created_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "community_members_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       competitions: {
         Row: {
@@ -91,6 +130,7 @@ export interface Database {
           status: 'draft' | 'in_progress' | 'finished'
           community_id: string
           created_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -101,6 +141,7 @@ export interface Database {
           status?: 'draft' | 'in_progress' | 'finished'
           community_id: string
           created_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -111,7 +152,17 @@ export interface Database {
           status?: 'draft' | 'in_progress' | 'finished'
           community_id?: string
           created_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "competitions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       games: {
         Row: {
@@ -124,6 +175,7 @@ export interface Database {
           status: 'scheduled' | 'in_progress' | 'finished'
           winner_id: string | null
           created_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -135,6 +187,7 @@ export interface Database {
           status?: 'scheduled' | 'in_progress' | 'finished'
           winner_id?: string | null
           created_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -146,7 +199,17 @@ export interface Database {
           status?: 'scheduled' | 'in_progress' | 'finished'
           winner_id?: string | null
           created_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "games_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       matches: {
         Row: {
@@ -156,6 +219,7 @@ export interface Database {
           player2_score: number
           notes: string | null
           created_at: string
+          created_by: string
         }
         Insert: {
           id?: string
@@ -164,6 +228,7 @@ export interface Database {
           player2_score: number
           notes?: string | null
           created_at?: string
+          created_by: string
         }
         Update: {
           id?: string
@@ -172,7 +237,17 @@ export interface Database {
           player2_score?: number
           notes?: string | null
           created_at?: string
+          created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "matches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
