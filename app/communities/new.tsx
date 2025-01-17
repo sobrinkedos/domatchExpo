@@ -4,7 +4,7 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { whatsappService } from '../../src/services/whatsapp';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function NewCommunityScreen() {
   const [name, setName] = useState('');
@@ -31,7 +31,7 @@ export default function NewCommunityScreen() {
 
       return data;
     },
-    onSuccess: (community) => {
+    onSuccess: async (community) => {
       try {
         // 2. Criar o grupo no WhatsApp
         const groupId = await whatsappService.createGroup(
@@ -49,54 +49,57 @@ export default function NewCommunityScreen() {
         if (updateError) {
           console.error('Erro ao atualizar ID do grupo:', updateError);
         }
-      } catch (whatsappError: any) {
-        console.error('Erro ao criar grupo no WhatsApp:', whatsappError);
-        // Não vamos impedir a criação da comunidade se o grupo falhar
-      }
 
+        // 4. Atualizar a cache do React Query
+        queryClient.invalidateQueries(['communities']);
+
+        // 5. Redirecionar para a página da comunidade
+        router.replace(`/communities/${community.id}`);
+      } catch (error) {
+        console.error('Erro ao criar grupo no WhatsApp:', error);
+        Alert.alert(
+          'Erro',
+          'Não foi possível criar o grupo no WhatsApp. A comunidade foi criada, mas você precisará criar o grupo manualmente.'
+        );
+      }
+    },
+    onError: (error) => {
+      console.error('Erro ao criar comunidade:', error);
       Alert.alert(
-        'Sucesso',
-        'Comunidade criada com sucesso!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace(`/communities/${community.id}`),
-          },
-        ]
+        'Erro',
+        'Não foi possível criar a comunidade. Por favor, tente novamente.'
       );
     },
   });
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert('Erro', 'O nome da comunidade é obrigatório');
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
       await createCommunity();
-    } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Erro ao criar comunidade');
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text variant="headlineMedium">Nova Comunidade</Text>
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          Crie uma nova comunidade para começar a organizar seus jogos
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <Text variant="headlineMedium" style={styles.title}>
+          Nova Comunidade
         </Text>
-      </View>
 
-      <View style={styles.form}>
         <TextInput
-          label="Nome da Comunidade *"
+          label="Nome"
           value={name}
           onChangeText={setName}
+          mode="outlined"
           style={styles.input}
         />
 
@@ -104,6 +107,7 @@ export default function NewCommunityScreen() {
           label="Descrição"
           value={description}
           onChangeText={setDescription}
+          mode="outlined"
           multiline
           numberOfLines={3}
           style={styles.input}
@@ -113,12 +117,13 @@ export default function NewCommunityScreen() {
           label="Localização"
           value={location}
           onChangeText={setLocation}
+          mode="outlined"
           style={styles.input}
         />
 
         <Button
           mode="contained"
-          onPress={handleCreate}
+          onPress={handleSubmit}
           loading={loading}
           disabled={loading}
           style={styles.button}
@@ -138,18 +143,12 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  header: {
+  title: {
     marginBottom: 24,
-  },
-  subtitle: {
-    marginTop: 8,
-    opacity: 0.7,
-  },
-  form: {
-    gap: 16,
+    textAlign: 'center',
   },
   input: {
-    backgroundColor: 'transparent',
+    marginBottom: 16,
   },
   button: {
     marginTop: 8,

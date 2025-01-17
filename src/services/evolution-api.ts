@@ -1,4 +1,7 @@
-import { EXPO_PUBLIC_EVOLUTION_API_URL, EXPO_PUBLIC_EVOLUTION_API_KEY } from '@env';
+import Constants from 'expo-constants';
+
+const API_URL = Constants.expoConfig?.extra?.evolutionApiUrl;
+const API_KEY = Constants.expoConfig?.extra?.evolutionApiKey;
 
 interface EvolutionApiConfig {
   baseUrl: string;
@@ -70,11 +73,31 @@ class EvolutionApiService {
     });
   }
 
-  async createGroup(name: string, participants: string[]) {
-    return this.request(`group/create/${this.instanceName}`, 'POST', {
-      name,
-      participants: participants.map(number => number.replace(/\D/g, '')),
-    });
+  async createGroup(name: string, description: string | null, participants: string[]) {
+    try {
+      const response = await fetch(`${this.baseUrl}/group/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          participants,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create group: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.groupId;
+    } catch (error) {
+      console.error('Error creating WhatsApp group:', error);
+      throw error;
+    }
   }
 
   async addParticipantToGroup(groupId: string, participant: string) {
@@ -116,9 +139,13 @@ class EvolutionApiService {
 
 // Criar instância do serviço
 const evolutionApi = new EvolutionApiService({
-  baseUrl: EXPO_PUBLIC_EVOLUTION_API_URL,
-  apiKey: EXPO_PUBLIC_EVOLUTION_API_KEY,
+  baseUrl: API_URL,
+  apiKey: API_KEY,
   instanceName: 'domatch', // Nome da instância para o app
 });
+
+if (!API_URL || !API_KEY) {
+  throw new Error('Evolution API configuration is missing');
+}
 
 export { evolutionApi };
